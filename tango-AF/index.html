@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Hugo 0.66.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,600" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/styles/github.min.css">
+  <link rel="stylesheet" href="../css/normalize.css">
+  <link rel="stylesheet" href="../css/skeleton.css">
+  <link rel="stylesheet" href="../css/custom.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+    integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="alternate" href="index.xml" type="application/rss+xml" title="Speech Research">
+  <link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
+  <title>Text-to-Audio Generation using Instruction Tuned LLM and Latent Diffusion Model</title>
+</head>
+
+<body rightmargin="150" leftmargin="150" topmargin="100" bottommargin="100" line-height:160%>
+  <font size="5">
+
+    <div class="container">
+
+      <header role="banner">
+
+      </header>
+      <main role="main">
+        <article itemscope itemtype="https://schema.org/BlogPosting">
+          <br></br>
+          <h1 itemprop="headline" align="center">
+            <font color="000093" size="7">Improving Text-To-Audio Models with </br>Synthetic Captions
+            </font>
+          </h1>
+          <br></br>
+          <p style="line-height:1" align="center"><b>
+              <font color="061E61">Zhifeng Kong<sup>*1</sup>, Sang-gil Lee<sup>*1</sup>, Deepanway Ghosal<sup>2</sup>, Navonil Majumder<sup>2</sup>,</br> Ambuj Mehrish<sup>2</sup>, Rafael Valle<sup>1</sup>, Soujanya
+                Poria<sup>2</sup>, Bryan Catanzaro<sup>1</sup></font>
+            </b></p>
+          <p style="line-height:1" align="center">
+          <font color="061E61"><sup>1</sup>NVIDIA</font></br>
+            <font color="061E61"><sup>2</sup>DeCLaRe Lab, Singapore University of Technology and Design, Singapore</font>
+          </p>
+
+          <section itemprop="entry-text">
+            <br>
+            <div class="container">
+              <center>
+		<!--<p>🔥🔥🎉🎉 We released Tango 2 which surpasses the performance of AudioLDM2 and Tango. Access it <a href="https://tango2-web.github.io/">here.</a></p><be>-->
+                <p><a href="https://arxiv.org/pdf/2406.15487">[Paper on ArXiv]</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/declare-lab/tango">[Code on GitHub]</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://huggingface.co/spaces/declare-lab/Tango-AF">[Hugging Face Space]</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href="https://huggingface.co/spaces/declare-lab/Tango-Music-AF">[Hugging Face Space (Music)]</a></p>
+              </center>
+            </div>
+            <h2 id="abstract">
+              <font color="000093">Abstract</font>
+            </h2>
+            <p style="text-align: justify;">
+              <font color="061E61">It is an open challenge to obtain high quality training data, especially captions, for text-to-audio models. Although prior methods have leveraged <i>text-only language models</i> to augment and improve captions, such methods have limitations related to scale and coherence between audio and captions. In this work, we propose an audio captioning pipeline that uses an <i>audio language model</i> to synthesize accurate and diverse captions for audio at scale. We leverage this pipeline to produce a dataset of synthetic captions for AudioSet, named <a href="https://github.com/NVIDIA/audio-flamingo/blob/main/labeling_machine"><code>AF-AudioSet</code></a>, and then evaluate the benefit of pre-training text-to-audio models on these synthetic captions. Through systematic evaluations on AudioCaps and MusicCaps, we find leveraging our pipeline and synthetic captions leads to significant improvements on audio generation quality, achieving a new <i>state-of-the-art</i>.</font>
+            </p>
+
+            <!--<h2 id="note">-->
+            <!--  <font color="000093">Note</font>-->
+            <!--</h2>-->
+            <!--<li>-->
+            <!--  <font color="061E61"> TANGO generates text-conditional sound effects, including human speech, and music.</font>-->
+            <!--</li>-->
+            <!--<li>-->
+            <!--  <font color="061E61"> The LDM is trained on a four A6000 GPUs, with text supervision from instruction tuned LLM -- FLAN-T5. </font>-->
+            <!--</li>-->
+            <!--<li>-->
+            <!--  <font color="061E61"> Despite training TANGO's LDM with 63x less data, it manages to produce superior sound quality to the baselines</font>-->
+            <!--</li>-->
+
+            </br>
+            <h2 id="architecture">
+              <font color="000093">Model Architecture</font>
+            </h2>
+            <figure>
+              <p align="center"><img src="../tango.png" width="100%" class="center" /></p>
+              <figcaption>
+                <p style="text-align: justify;">
+                  <font color="061E61"><b>Figure 1:</b> TANGO, as depicted in this figure, has three major components: i) textual-prompt encoder, ii) latent diffusion model (LDM), and iii) mel-spectogram/audio VAE. The textual-prompt encoder (FLAN-T5) encodes the input description of the audio. Subsequently, the textual representation is used to construct a latent representation of the audio or audio prior from standard Gaussian noise, using reverse diffusion. Thereafter the decoder of the mel-spectogram VAE constructs a mel-spectogram from the latent audio representation. This mel-spectogram is fed to a vocoder to generate the final audio.
+                </p>
+              </figcaption>
+            </figure>
+            <br> </br>
+            <p><b>
+                <font color="061E61">Comparative Musical Examples:</font>
+              </b></p>
+
+            <table class="table" align="center" style="table-layout: fixed;word-break:break-word">
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The instrumental music features an ensemble that resembles the orchestra. The melody is being played by a brass section while strings provide harmonic accompaniment. At the end of the music excerpt one can hear a double bass playing a long note and then a percussive noise.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/-5FoeegAgvU/AudioLDM2--5FoeegAgvU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/-5FoeegAgvU/Tango-Full--5FoeegAgvU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/-5FoeegAgvU/TangoMusic-AF--5FoeegAgvU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This middle eastern folk song features a male voice. This is accompanied by a string instrument called the oud playing the melody in between lines. A variety of middle-eastern percussion instruments are played in the background. A tambourine is played on every count. A darbuka plays a simple beat. This folk song can be played in a movie scene set in a Moroccan market.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/-6HBGg1cAI0/AudioLDM2--6HBGg1cAI0.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/-6HBGg1cAI0/Tango-Full--6HBGg1cAI0.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/-6HBGg1cAI0/TangoMusic-AF--6HBGg1cAI0.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      Two female voices are singing in harmony to a ukulele strumming chords. One of the voices is deeper and the other one higher. This song may be jamming together at home.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/-e4wXAy1iVo/AudioLDM2--e4wXAy1iVo.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/-e4wXAy1iVo/Tango-Full--e4wXAy1iVo.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/-e4wXAy1iVo/TangoMusic-AF--e4wXAy1iVo.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is a jazz music piece with a saxophone solo as the lead. There is a clean-toned synth bass in the background creating an epic atmosphere. It would fit perfectly in a movie/TV show setting as a soundtrack opening.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/26IOFykrJrc/AudioLDM2-26IOFykrJrc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/26IOFykrJrc/Tango-Full-26IOFykrJrc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/26IOFykrJrc/TangoMusic-AF-26IOFykrJrc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      Someone is playing a distorted e-guitar. Finger-tapping a classical music piece. This is an amateur recording and not of the best sound-quality. This song may be playing at home showing off your skills to a friend.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/2VFVe0RCn7g/AudioLDM2-2VFVe0RCn7g.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/2VFVe0RCn7g/Tango-Full-2VFVe0RCn7g.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/2VFVe0RCn7g/TangoMusic-AF-2VFVe0RCn7g.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The drum is playing a four on the floor groove with little fill-ins on the snare crash. A synthesizer is playing a 2000s pad sounding lead melody. The distorted e-guitar that is playing underlining the melody with some long sounding chords. This song may be played at an event to animate and pump up the people.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/3mStyfCbL68/AudioLDM2-3mStyfCbL68.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/3mStyfCbL68/Tango-Full-3mStyfCbL68.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/3mStyfCbL68/TangoMusic-AF-3mStyfCbL68.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The song is an instrumental. The song is medium tempo with a string section accompaniment, timpani playing and other percussion instruments. There are other funny sounds like ball bouncing and other percussion tones. The song is an ad jingle soundtrack. The audio track is of poor quality.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/40vmsGsFBsw/AudioLDM2-40vmsGsFBsw.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/40vmsGsFBsw/Tango-Full-40vmsGsFBsw.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/40vmsGsFBsw/TangoMusic-AF-40vmsGsFBsw.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      Someone is playing a distorted e-guitar solo melody with a lot of reverb over another e-guitar finger picking chords. This is an amateur recording. This song may be playing guitar at home.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/6jdeSAmkzEU/AudioLDM2-6jdeSAmkzEU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/6jdeSAmkzEU/Tango-Full-6jdeSAmkzEU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/6jdeSAmkzEU/TangoMusic-AF-6jdeSAmkzEU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The instrumental music features a string section playing an ascending long-note melody while at the same time providing harmonic support. A harp is playing arpeggios. Although it feels as if time passes slowly, the tempo is medium. Listening to this music I get a sense of profoundness that's moving me. This music could work well as the soundtrack for a movie.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/6vRBp8jo40Q/AudioLDM2-6vRBp8jo40Q.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/6vRBp8jo40Q/Tango-Full-6vRBp8jo40Q.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/6vRBp8jo40Q/TangoMusic-AF-6vRBp8jo40Q.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This music is a percussion instrumental . The tempo is medium fast with a rhythmic tambourine beat. The music is minimal with the sound of the tambourine metal plates clanging and a dull drum head beat. The music is catchy, enthusiastic and has a rhythmic beat.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/7_80oVTLkGU/AudioLDM2-7_80oVTLkGU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/7_80oVTLkGU/Tango-Full-7_80oVTLkGU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/7_80oVTLkGU/TangoMusic-AF-7_80oVTLkGU.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This song is led by a e-guitar solo playing a lightly distorted guitar on the upper register. An acoustic guitar panned to the left and right side of the speakers is playing chords along with a bass that gets slapped and an acoustic drums in the background. This song may be played at a live concert.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/9FLDpfkbxZs/AudioLDM2-9FLDpfkbxZs.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/9FLDpfkbxZs/Tango-Full-9FLDpfkbxZs.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/9FLDpfkbxZs/TangoMusic-AF-9FLDpfkbxZs.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is an animation theme. There is a brass section playing the melody with the saxophone being the lead. The hi-hat cymbals are played with a feeling of swing on the acoustic drums. The atmosphere is sneaky and filled with intrigue. These characteristics make it a perfect soundtrack for a heist/detective cartoon or an animation movie. It could also work well in the soundtrack of a video game from a similar genre.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/9WrIbJC_C7A/AudioLDM2-9WrIbJC_C7A.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/9WrIbJC_C7A/Tango-Full-9WrIbJC_C7A.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/9WrIbJC_C7A/TangoMusic-AF-9WrIbJC_C7A.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This instrumental pop song features an acoustic guitar being played fingerstyle. The notes are being plucked. Guitar harmonics are played in between the plucked notes. This song is played at a moderate tempo. There is no percussion in this song. There are no other instruments in this song. The mood of this song is relaxing. This song can be played in a coffee shop.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/9xV0nmojVeg/AudioLDM2-9xV0nmojVeg.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/9xV0nmojVeg/Tango-Full-9xV0nmojVeg.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/9xV0nmojVeg/TangoMusic-AF-9xV0nmojVeg.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is a jazz piece played in the background of a video game. A trumpet plays the main melody while a xylophone and a bass guitar is supporting the tune in the background. A playful jazz drum beat carries the rhythmic background. Occasional electric guitar fills in the form a strum can be heard. There are a lot of sound effects related to the game such as squeaking, chewing and explosions.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/BkOfrw3c3EE/AudioLDM2-BkOfrw3c3EE.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/BkOfrw3c3EE/Tango-Full-BkOfrw3c3EE.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/BkOfrw3c3EE/TangoMusic-AF-BkOfrw3c3EE.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The song is instrumental. The song is medium tempo with a groovy bass line,  keyboard harmony, various percussion hits and a steady drumming rhythm. The song has a dance rhythm and is exciting.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/ClK_qf_Twm8/AudioLDM2-ClK_qf_Twm8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/ClK_qf_Twm8/Tango-Full-ClK_qf_Twm8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/ClK_qf_Twm8/TangoMusic-AF-ClK_qf_Twm8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The song has a traditional jazzy feel to it. The piano chord progression is bouncy and light. The electric guitar has a chorus applied to it, and we hear various licks being played.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/DewyiIpkzi8/AudioLDM2-DewyiIpkzi8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/DewyiIpkzi8/Tango-Full-DewyiIpkzi8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/DewyiIpkzi8/TangoMusic-AF-DewyiIpkzi8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is an instrumental rock music jam. The only instrument is a clean-sounding electric guitar playing an arpeggio with an added echo effect. The atmosphere is calming. Although the recording quality is a bit low, this piece could be playing in the background of a rock bar after a decent mix is applied.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/J0RzvGnQxD0/AudioLDM2-J0RzvGnQxD0.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/J0RzvGnQxD0/Tango-Full-J0RzvGnQxD0.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/J0RzvGnQxD0/TangoMusic-AF-J0RzvGnQxD0.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is a yodeling music piece. There is a female vocalist that is singing happily in the lead. The melody is provided by medium and high pitch woodwinds. In the background, the bass line is played by an upright bass while the rhythm is provided by an acoustic drum. The atmosphere is very lively. This piece could be used in the soundtrack of a comedy movie or a children's show.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/J1gZRam89EE/AudioLDM2-J1gZRam89EE.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/J1gZRam89EE/Tango-Full-J1gZRam89EE.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/J1gZRam89EE/TangoMusic-AF-J1gZRam89EE.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The track features a Christmas song with no vocals. The melody is very simple and it's played by a Schoenhut Piano that's accompanied by subtle strings. The atmosphere is positive and very Christmas-like.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/JCsuOzlwJqA/AudioLDM2-JCsuOzlwJqA.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/JCsuOzlwJqA/Tango-Full-JCsuOzlwJqA.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/JCsuOzlwJqA/TangoMusic-AF-JCsuOzlwJqA.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      Someone is strumming chords on an e-guitar. The e-guitar is slightly out of tune. This song may be playing at home trying out sounds on the e-guitar.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/PB3i02Cjf1k/AudioLDM2-PB3i02Cjf1k.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/PB3i02Cjf1k/Tango-Full-PB3i02Cjf1k.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/PB3i02Cjf1k/TangoMusic-AF-PB3i02Cjf1k.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      Animated vocalists singing a choral harmony. The song is medium tempo with no instrumentation, but just voices singing in various harmonic ranges. The song is cheerful and cartoonish. The song is a parody of a modern pop song with western classical music influences.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/PSYURntIjuc/AudioLDM2-PSYURntIjuc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/PSYURntIjuc/Tango-Full-PSYURntIjuc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/PSYURntIjuc/TangoMusic-AF-PSYURntIjuc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      The ambient song features crickets, frogs and other night insects and animals sound effects, widely spread throughout the stereo image, while there is a reversed dark, mellow piano melody playing. It sounds calming and relaxing.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/PTl5ixI1Ogc/AudioLDM2-PTl5ixI1Ogc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/PTl5ixI1Ogc/Tango-Full-PTl5ixI1Ogc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/PTl5ixI1Ogc/TangoMusic-AF-PTl5ixI1Ogc.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This music is instrumental. The tempo is fast with an electric guitar playing a bright lead with infectious drumming and syncopated bass lines. The music is upbeat, energetic, youthful, animated, spirited, enthusiastic, groovy and funky.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/VM-U7MyZAck/AudioLDM2-VM-U7MyZAck.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/VM-U7MyZAck/Tango-Full-VM-U7MyZAck.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/VM-U7MyZAck/TangoMusic-AF-VM-U7MyZAck.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is a classical music waltz piece played on a glass harp instrument. The melody is being played on the smaller glasses at a higher pitch while the rhythm is being played on the bigger glass at a medium pitch. The piece is being played at a cathedral which gives a nice resonance and natural reverb effect. The piece has a unique character. It can be played in the soundtracks of children's movies/TV shows.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/_b-7P-XsnUI/AudioLDM2-_b-7P-XsnUI.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/_b-7P-XsnUI/Tango-Full-_b-7P-XsnUI.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/_b-7P-XsnUI/TangoMusic-AF-_b-7P-XsnUI.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is a rock music piece consisting of three instruments. There is a distorted electric lead guitar playing a solo that is increasing from medium to high pitch. The bass guitar is providing tune in the background. There is a loud acoustic drum beat that includes a lot of fills. The song has a vigorous, high energy feel to it. This piece could be played at rock bars.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/a4jcJ7QZ-OQ/AudioLDM2-a4jcJ7QZ-OQ.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/a4jcJ7QZ-OQ/Tango-Full-a4jcJ7QZ-OQ.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/a4jcJ7QZ-OQ/TangoMusic-AF-a4jcJ7QZ-OQ.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This song contains a full orchestra playing a melody with long and short strings; flutes adding short melodies on top and a cymbal hit to close the phrase. A mixed choir is singing opera then a male solo singer takes over with a higher voice. This song may be playing in a musical or theater opera performance.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/b62RgDBmly8/AudioLDM2-b62RgDBmly8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/b62RgDBmly8/Tango-Full-b62RgDBmly8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/b62RgDBmly8/TangoMusic-AF-b62RgDBmly8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This is a repeated chord progression that's arpeggiated on an electric guitar. The guitar signal has a chorus pedal effect applied to it, and so it doesn't sound like a clean tone. The arpeggio itself is mellow yet uplifting.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/f1_YKSYgtbI/AudioLDM2-f1_YKSYgtbI.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/f1_YKSYgtbI/Tango-Full-f1_YKSYgtbI.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/f1_YKSYgtbI/TangoMusic-AF-f1_YKSYgtbI.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This music clip is an instrumental. The tempo is slow with a  violin playing sharp ,sudden notes. The scale change is random with no harmony or melody. This music sounds like a violin being tuned.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/j0FynYzQvcM/AudioLDM2-j0FynYzQvcM.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/j0FynYzQvcM/Tango-Full-j0FynYzQvcM.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/j0FynYzQvcM/TangoMusic-AF-j0FynYzQvcM.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This amateur recording features the main melody being played by a theremin. This is accompanied by a piano. There are no other instruments played in this clip. The mood of this song is relaxed. There are no voices in this song. This song can be played in a slow motion action scene in a superhero movie.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/pSzTPGlNa5U/AudioLDM2-pSzTPGlNa5U.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/pSzTPGlNa5U/Tango-Full-pSzTPGlNa5U.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/pSzTPGlNa5U/TangoMusic-AF-pSzTPGlNa5U.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      This song is an animated instrumental. The tempo is fast with synthesiser arrangements, intense drumming, groovy bass lines and digital sound effects. The music is upbeat, catchy, compelling, youthful, psychedelic, trance like and intense with an upbeat dance groove. This song is contemporary Synth Pop.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/pn6toTLXAck/AudioLDM2-pn6toTLXAck.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/pn6toTLXAck/Tango-Full-pn6toTLXAck.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/pn6toTLXAck/TangoMusic-AF-pn6toTLXAck.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      A male vocalist sings this meditative chant. The tempo is slow with keyboard harmony, steady drumming, rhythmic acoustic guitar,tambourine and female vocal backup. The song is a vocal riff of a chant sung melodiously. It is calming, peaceful, meditative, pensive, soothing, prayerful and devotional. This song is sung during Hindu festivities or Pujas.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/vK9x7UQ9Y7k/AudioLDM2-vK9x7UQ9Y7k.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/vK9x7UQ9Y7k/Tango-Full-vK9x7UQ9Y7k.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/vK9x7UQ9Y7k/TangoMusic-AF-vK9x7UQ9Y7k.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+              <tr>
+                  <td rowspan="3" width="70%" style="vertical-align: middle;">
+                      Someone is playing an acoustic guitar along with someone playing a solo melody on top with another plucked string instrument. They are accompanied by someone playing a djembe or another percussive instrument. This song may be playing sitting around a bonfire.
+                  </td>
+                  <td width="30%"> <code>AudioLDM2:</code> <audio controls="controls">
+                      <source src="./demo_web/vgpV6F9tge8/AudioLDM2-vgpV6F9tge8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>Tango-Full:</code> <audio controls="controls">
+                      <source src="./demo_web/vgpV6F9tge8/Tango-Full-vgpV6F9tge8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+              <tr>
+                  <td width="30%"> <code>TangoMusic-AF:</code> <audio controls="controls">
+                      <source src="./demo_web/vgpV6F9tge8/TangoMusic-AF-vgpV6F9tge8.wav" autoplay />
+                      Your browser does not support the audio element.
+                    </audio>
+                  </td>
+              </tr>
+
+            </table>
+
+
+            <h2 id="Acknowledgement">
+              <font color="000093">Acknowledgement</font>
+            </h2>
+            <div class="container">
+              <p>
+                This website is created based on <a href = "https://github.com/AudioLDM/AudioLDM.github.io"> https://github.com/AudioLDM/AudioLDM.github.io </a>
+              </p>
+            </div> 
+          </section>
+        </article>
+      </main>
+
+    </div>
+
+    <script>
+      (function (i, s, o, g, r, a, m) {
+        i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+          (i[r].q = i[r].q || []).push(arguments)
+        }, i[r].l = 1 * new Date(); a = s.createElement(o),
+          m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
+      })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+      ga('create', 'UA-139981676-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/8.4/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+
+
+    <script type="text/x-mathjax-config">
+     MathJax.Hub.Config({
+         HTML: ["input/TeX","output/HTML-CSS"],
+         TeX: {
+                Macros: {
+                         bm: ["\\boldsymbol{#1}", 1],
+                         argmax: ["\\mathop{\\rm arg\\,max}\\limits"],
+                         argmin: ["\\mathop{\\rm arg\\,min}\\limits"]},
+                extensions: ["AMSmath.js","AMSsymbols.js"],
+                equationNumbers: { autoNumber: "AMS" } },
+         extensions: ["tex2jax.js"],
+         jax: ["input/TeX","output/HTML-CSS"],
+         tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+                    displayMath: [ ['$$','$$'], ["\\[","\\]"] ],
+                    processEscapes: true },
+         "HTML-CSS": { availableFonts: ["TeX"],
+                       linebreaks: { automatic: true } }
+     });
+ </script>
+
+    <script type="text/x-mathjax-config">
+     MathJax.Hub.Config({
+       tex2jax: {
+         skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+       }
+     });
+ </script>
+
+    <script type="text/javascript" async
+      src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-MML-AM_CHTML">
+      </script>
+
+
+</body>
+
+</html>
